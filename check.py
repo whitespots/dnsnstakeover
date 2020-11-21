@@ -1,10 +1,7 @@
 import socket
-import requests
 import os
 import json
 from dns import resolver
-from urllib3.exceptions import InsecureRequestWarning
-requests.packages.urllib3.disable_warnings(category=InsecureRequestWarning)
 
 TIMEOUT=3
 dn_hoster_list = {
@@ -44,7 +41,7 @@ def resp(domain, state=False, possible=False):
 
 def detect_ns(domain):
 
-    custom_resolver = resolver.Resolver()
+    custom_resolver = resolver.Resolver(configure=False)
 
     root_servers = [
         'a.root-servers.net',
@@ -53,9 +50,8 @@ def detect_ns(domain):
         'd.root-servers.net'
     ]
 
-    secondary_servers = []
     custom_resolver.nameservers = [socket.gethostbyname(str(ns)) for ns in root_servers]
-    answer = custom_resolver.query(domain, 'NS', raise_on_no_answer=False)
+    answer = custom_resolver.resolve(domain, 'NS', raise_on_no_answer=False)
     secondary_servers = [socket.gethostbyname(str(ns)) for ns in answer.response.authority[0].items]
 
     last_ns = []
@@ -64,7 +60,7 @@ def detect_ns(domain):
     for loop in range(0, 5):
         try:
             custom_resolver.nameservers = secondary_servers
-            answer = custom_resolver.query(domain, 'NS', raise_on_no_answer=False)
+            answer = custom_resolver.resolve(domain, 'NS', raise_on_no_answer=False)
             named_ns_list = answer.response.authority[0].items
             secondary_servers = [socket.gethostbyname(str(ns)) for ns in named_ns_list]
         except Exception as ex:
@@ -82,7 +78,7 @@ def check(domain):
     confident_ns_detected = False
 
     try:
-        resolver.query(domain, 'NS')
+        resolver.resolve(domain, 'NS')
     except Exception as ex:
         # If someone will see this logic through the exception antipattern, so know - WE NEED TO GREP SERVFAIL somehow..
         if any([code in str(ex) for code in ['SERVFAIL', 'REFUSED']]):

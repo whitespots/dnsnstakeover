@@ -1,2 +1,1 @@
-requests
-dnspython
+dnspython==2.0.0
